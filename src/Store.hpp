@@ -12,6 +12,7 @@ public:
     void remove(const std::string &key);
     std::string getKey(const std::string &value);
     std::string stats() const;
+    int32_t count_size(); // returns size of kv
 
 private:
     std::unordered_map<std::string, std::string> kv;

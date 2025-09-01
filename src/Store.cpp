@@ -31,3 +31,8 @@ std::string Store::getKey(const std::string &value) {
 std::string Store::stats() const {
     return "Number of keys: " + std::to_string(kv.size());
 }
+
+int32_t Store::count_size()
+{
+    return kv.size();
+}

@@ -3,21 +3,23 @@
 
 #include "Store.hpp"
 #include <string>
+#include <chrono>
+#include <netinet/in.h>
+#include <unistd.h>
 
 class Server {
 public:
     Server(int port);
-    ~Server();
-
     void run();
 
 private:
-    int server_fd;
     int port;
     Store store;
+    std::chrono::steady_clock::time_point startTime;
+    size_t requestCount = 0;
+    size_t activeConnections = 0;
 
-    void handleClient(int client_fd);
-    std::string processCommand(const std::string &cmd);
+    std::string handleCommand(const std::string &command);
 };
 
 #endif
