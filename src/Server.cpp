@@ -1,102 +1,124 @@
 #include "Server.hpp"
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <cstring>
 #include <iostream>
 #include <sstream>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <cstring>
 
-#define BUFFER_SIZE 1024
+Server::Server(int port) : port(port), server_fd(-1) {}
 
-Server::Server(int port) : port(port) {}
+Server::~Server() {
+    if (server_fd != -1) {
+        close(server_fd);
+    }
+}
 
 void Server::run() {
-    int server_fd, new_socket;
-    struct sockaddr_in address;
-    int opt = 1;
-    int addrlen = sizeof(address);
-    char buffer[BUFFER_SIZE];
-
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
         perror("socket failed");
-        return;
+        exit(EXIT_FAILURE);
     }
 
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-        perror("setsockopt failed");
-        close(server_fd);
-        return;
-    }
-
+    sockaddr_in address{};
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
 
-    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("bind failed");
-        close(server_fd);
-        return;
+        exit(EXIT_FAILURE);
     }
 
-    if (listen(server_fd, 3) < 0) {
+    if (listen(server_fd, 1) < 0) {
         perror("listen failed");
-        close(server_fd);
-        return;
+        exit(EXIT_FAILURE);
     }
 
     std::cout << "Server listening on port " << port << "...\n";
 
-    while (true) {
-        new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen);
-        if (new_socket < 0) {
-            perror("accept failed");
-            continue;
-        }
+    sockaddr_in client_addr{};
+    socklen_t client_len = sizeof(client_addr);
 
-        memset(buffer, 0, BUFFER_SIZE);
-        int valread = read(new_socket, buffer, BUFFER_SIZE);
-        if (valread > 0) {
-            std::string response = handleCommand(buffer);
-            send(new_socket, response.c_str(), response.size(), 0);
-
-            if (response == "SHUTTING DOWN\n") {
-                close(new_socket);
-                break;
-            }
-        }
-        close(new_socket);
+    int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_len);
+    if (client_fd < 0) {
+        perror("accept failed");
+        exit(EXIT_FAILURE);
     }
 
-    close(server_fd);
+    std::cout << "Client connected.\n";
+
+    handleClient(client_fd);
+
+    close(client_fd);
+    std::cout << "Client disconnected.\n";
 }
 
-std::string Server::handleCommand(const std::string &cmd) {
+void Server::handleClient(int client_fd) {
+    char buffer[1024];
+    bool running = true;
+
+    while (running) {
+        memset(buffer, 0, sizeof(buffer));
+        ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+        if (bytes_read <= 0) {
+            std::cout << "Client disconnected unexpectedly.\n";
+            break;
+        }
+
+        std::string cmd(buffer);
+        if (cmd.back() == '\n') cmd.pop_back();
+
+        std::string response = processCommand(cmd);
+
+        if (response == "SHUTDOWN") {
+            std::string msg = "SHUTTING DOWN\n";
+            send(client_fd, msg.c_str(), msg.size(), 0);
+            running = false;
+            break;
+        }
+
+        response += "\n";
+        send(client_fd, response.c_str(), response.size(), 0);
+    }
+}
+
+std::string Server::processCommand(const std::string &cmd) {
     std::istringstream iss(cmd);
-    std::string action, key, value;
+    std::string action;
     iss >> action;
 
     if (action == "PUT") {
+        std::string key, value;
         iss >> key >> value;
         store.put(key, value);
-        return "OK\n";
+        return "OK";
     } else if (action == "GET") {
+        std::string key;
         iss >> key;
-        auto val = store.get(key);
-        return val.has_value() ? val.value() + "\n" : "NOT_FOUND\n";
+        return store.get(key);
     } else if (action == "UPDATE") {
+        std::string key, value;
         iss >> key >> value;
-        return store.update(key, value) ? "OK\n" : "NOT_FOUND\n";
+        store.update(key, value);
+        return "OK";
     } else if (action == "DELETE") {
+        std::string key;
         iss >> key;
-        return store.remove(key) ? "OK\n" : "NOT_FOUND\n";
+        store.remove(key);
+        return "OK";
     } else if (action == "GET_KEY") {
+        std::string value;
         iss >> value;
-        auto keyOpt = store.getKey(value);
-        return keyOpt.has_value() ? keyOpt.value() + "\n" : "NOT_FOUND\n";
+        return store.getKey(value);
     } else if (action == "STATS") {
-        return "Number of keys: " + std::to_string(store.size()) + "\n";
+        return store.stats();
     } else if (action == "SHUTDOWN") {
-        return "SHUTTING DOWN\n";
+        return "SHUTDOWN";
     }
-    return "ERROR: Unknown command\n";
+
+    return "ERROR: Unknown command";
 }

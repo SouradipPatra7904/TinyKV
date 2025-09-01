@@ -3,19 +3,18 @@
 
 #include <string>
 #include <unordered_map>
-#include <optional>
 
 class Store {
 public:
     void put(const std::string &key, const std::string &value);
-    std::optional<std::string> get(const std::string &key) const;
-    bool update(const std::string &key, const std::string &value);
-    bool remove(const std::string &key);
-    std::optional<std::string> getKey(const std::string &value) const;
-    size_t size() const;
+    std::string get(const std::string &key);
+    void update(const std::string &key, const std::string &value);
+    void remove(const std::string &key);
+    std::string getKey(const std::string &value);
+    std::string stats() const;
 
 private:
-    std::unordered_map<std::string, std::string> data;
+    std::unordered_map<std::string, std::string> kv;
 };
 
 #endif

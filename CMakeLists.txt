@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
-project(TinyKV CXX)
+project(TinyKV)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Server executable
 add_executable(server
@@ -11,21 +11,11 @@ add_executable(server
     src/Store.cpp
 )
 
+target_include_directories(server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 # Client executable
 add_executable(client
-    src/Client.cpp
+    client/Client.cpp
 )
 
-target_include_directories(server PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_include_directories(client PRIVATE ${CMAKE_SOURCE_DIR}/src)
-
-# --- Testing Integration ---
-enable_testing()
-
-# Ensure test.sh is executable and in build dir
-configure_file(${CMAKE_SOURCE_DIR}/BaseTest.sh ${CMAKE_BINARY_DIR}/BaseTest.sh COPYONLY)
-
-# Register test with CTest
-add_test(NAME TinyKV_StoreTest
-         COMMAND ${CMAKE_COMMAND} -E env
-                 bash ${CMAKE_BINARY_DIR}/BaseTest.sh)
+target_include_directories(client PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

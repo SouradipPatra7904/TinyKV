@@ -1,35 +1,33 @@
 #include "Store.hpp"
 
 void Store::put(const std::string &key, const std::string &value) {
-    data[key] = value;
+    kv[key] = value;
 }
 
-std::optional<std::string> Store::get(const std::string &key) const {
-    auto it = data.find(key);
-    if (it != data.end()) return it->second;
-    return std::nullopt;
-}
-
-bool Store::update(const std::string &key, const std::string &value) {
-    auto it = data.find(key);
-    if (it != data.end()) {
-        it->second = value;
-        return true;
+std::string Store::get(const std::string &key) {
+    if (kv.find(key) != kv.end()) {
+        return kv[key];
     }
-    return false;
+    return "NOT_FOUND";
 }
 
-bool Store::remove(const std::string &key) {
-    return data.erase(key) > 0;
+void Store::update(const std::string &key, const std::string &value) {
+    kv[key] = value;
 }
 
-std::optional<std::string> Store::getKey(const std::string &value) const {
-    for (const auto &pair : data) {
-        if (pair.second == value) return pair.first;
+void Store::remove(const std::string &key) {
+    kv.erase(key);
+}
+
+std::string Store::getKey(const std::string &value) {
+    for (const auto &pair : kv) {
+        if (pair.second == value) {
+            return pair.first;
+        }
     }
-    return std::nullopt;
+    return "NOT_FOUND";
 }
 
-size_t Store::size() const {
-    return data.size();
+std::string Store::stats() const {
+    return "Number of keys: " + std::to_string(kv.size());
 }

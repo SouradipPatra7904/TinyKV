@@ -6,14 +6,18 @@
 
 class Server {
 public:
-    explicit Server(int port);
+    Server(int port);
+    ~Server();
+
     void run();
 
 private:
+    int server_fd;
     int port;
     Store store;
 
-    std::string handleCommand(const std::string &cmd);
+    void handleClient(int client_fd);
+    std::string processCommand(const std::string &cmd);
 };
 
 #endif
